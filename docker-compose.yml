@@ -28,6 +28,7 @@ services:
       - REDIS_PORT=6379 # 与上面redis暴露端口保持一致
       - REDIS_HOST=mockvox_redis # ip地址
       - MODEL_TYPE=full # 默认下载训练模型中文zh，其他可填值：en、can、ja、ko、full
+      - MODEL_SOURCE=hr_mirror # 默认使用hr-mirror,其他可填：hr-mirror、huggingface
     volumes:
       - ./data:/mockvox/data
       - ./log:/mockvox/log

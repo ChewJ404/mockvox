@@ -3,32 +3,26 @@
 set -e  # 出现错误立即退出
 set -o pipefail  # 管道命令错误退出
 
-chmod +x /mockvox/Docker/generalDownload.sh
-/mockvox/Docker/generalDownload.sh
+chmod +x /mockvox/Docker/baseDownload.sh
+/mockvox/Docker/baseDownload.sh general
 python /mockvox/Docker/generalDownload.py
 # 安装中文模型文件
 if [ "$MODEL_TYPE" == "full" ]; then
-	chmod +x /mockvox/Docker/englishDownload.sh
-	/mockvox/Docker/englishDownload.sh
+	/mockvox/Docker/baseDownload.sh english
 	python /mockvox/Docker/cantoneseDownload.py
-	chmod +x /mockvox/Docker/japaneseDownload.sh
-	/mockvox/Docker/japaneseDownload.sh
+	/mockvox/Docker/baseDownload.sh japanese
 	python /mockvox/Docker/japaneseDownload.py
-	chmod +x /mockvox/Docker/koreanDownload.sh
-	/mockvox/Docker/koreanDownload.sh
+	/mockvox/Docker/baseDownload.sh korean
 	python /mockvox/Docker/koreanDownload.py
 elif [ "$MODEL_TYPE" == "en" ]; then
-	chmod +x /mockvox/Docker/englishDownload.sh
-	/mockvox/Docker/englishDownload.sh
+	/mockvox/Docker/baseDownload.sh english
 elif [ "$MODEL_TYPE" == "can" ]; then
 	python /mockvox/Docker/cantoneseDownload.py
 elif [ "$MODEL_TYPE" == "ja" ]; then
-	chmod +x /mockvox/Docker/japaneseDownload.sh
-	/mockvox/Docker/japaneseDownload.sh
+	/mockvox/Docker/baseDownload.sh japanese
 	python /mockvox/Docker/japaneseDownload.py
 elif [ "$MODEL_TYPE" == "ko" ]; then
-	chmod +x /mockvox/Docker/koreanDownload.sh
-	/mockvox/Docker/koreanDownload.sh
+	/mockvox/Docker/baseDownload.sh korean
 	python /mockvox/Docker/koreanDownload.py
 fi
 
