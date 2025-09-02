@@ -30,7 +30,7 @@ class CeleryConfig:
     }
     
     # 其他高级配置
-    worker_prefetch_multiplier = 1  # 控制并发性能
+    worker_prefetch_multiplier = 3  # 控制并发性能
     task_acks_late = True  # 确保任务不丢失
 
 celery_config = CeleryConfig()

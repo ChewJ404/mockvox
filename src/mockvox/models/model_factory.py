@@ -20,11 +20,11 @@ from mockvox.nn import mel_spectrogram_torch
 # 伪模型类（实际项目中替换为真实的模型类）
 class PyTorchModel:
     MODEL_MAPPING = {
-        "zh": "GPT-SoVITS/chinese-roberta-wwm-ext-large",
-        "en": "FacebookAI/roberta-large",
-        "ja": "tohoku-nlp/bert-large-japanese-v2",
-        "ko": "klue/roberta-large",
-        "can": "GPT-SoVITS/chinese-roberta-wwm-ext-large"
+        "zh": "GPT-SoVITS/chinese-roberta-wwm-ext-large"
+        # "en": "FacebookAI/roberta-large",
+        # "ja": "tohoku-nlp/bert-large-japanese-v2",
+        # "ko": "klue/roberta-large",
+        # "can": "GPT-SoVITS/chinese-roberta-wwm-ext-large"
         }
     device = "cuda" if torch.cuda.is_available() else "cpu"
     def __init__(self, name: str):

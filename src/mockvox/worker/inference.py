@@ -9,6 +9,8 @@ import time
 from pathlib import Path
 from mockvox.config import OUT_PUT_PATH
 from .worker import celeryApp
+from mockvox.worker.notify import notify_task
+
 
 @celeryApp.task(name="inference", bind=True)
 def inference_task(self,gpt_model_path:str , 
@@ -39,17 +41,21 @@ def inference_task(self,gpt_model_path:str ,
             gc.collect()  
     result_list = list(synthesis_result)
     outputname = os.path.join(Path(OUT_PUT_PATH), self.request.id+".WAV")
+    data = {
+        "status": "fail",
+        "results": {},
+        "type": self.request.task,
+        "time": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+    }
     if result_list:
         last_sampling_rate, last_audio_data = result_list[-1]
         sf.write( outputname,  last_audio_data, int(last_sampling_rate))
-        return {
-            "status": "success", 
-            "results": {}, 
-            "time":time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+        data = {
+            "status": "success",
+            "results": {},
+            "type": self.request.task,
+            "time": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
         }
-        
-    return {
-        "status": "fail", 
-        "results": {}, 
-        "time":time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-    }
+    # 推理暂不发送回调通知
+    #notify_task.delay(self.request.id, data)
+    return data

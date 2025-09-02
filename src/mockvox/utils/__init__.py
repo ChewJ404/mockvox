@@ -12,7 +12,7 @@ from .files import (
 from .TQDM import CustomTQDM
 from .loss import discriminator_loss, generator_loss, feature_loss, kl_loss
 from .tools import *
-
+from .async_notifier import notifier
 LRELU_SLOPE = 0.1
 
 __all__ = [
@@ -26,6 +26,7 @@ __all__ = [
     "HParams",
     "allowed_file",
     "CustomTQDM",
+    "notifier",
 
     # loss
     "discriminator_loss",

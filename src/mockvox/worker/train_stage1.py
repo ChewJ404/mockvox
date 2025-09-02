@@ -9,6 +9,7 @@ from mockvox.config import get_config, UPLOAD_PATH, SLICED_ROOT_PATH, DENOISED_R
 from mockvox.engine.v2 import slice_audio, batch_denoise, batch_asr, load_asr_data, batch_add_asr
 from .worker import celeryApp
 from mockvox.utils import MockVoxLogger
+from mockvox.worker.notify import notify_task
 
 cfg = get_config()
 os.makedirs(SLICED_ROOT_PATH, exist_ok=True)
@@ -71,24 +72,31 @@ def process_file_task(
         results["asr"] = asr_results
         results["file_id"] = stem
         
-        return {
-            "status": "success", 
-            "results": results, 
-            "time":time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+        data = {
+            "status": "success",
+            "results": results,
+            "type": self.request.task,
+            "time": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
         }
+        notify_task.delay(self.request.id, data)
+        return data
     
     except Exception as e:
         MockVoxLogger.error(
             f"Task failed: {file_name} \n\
                 Traceback:\n{traceback.format_exc()}"
         )
-        return {
+        data = {
             "status": "fail", 
             "results": {}, 
+            "type": self.request.task,
             "time":time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
         }
+        notify_task.delay(self.request.id, data)
+        return data
+        
     
-@celeryApp.task(name="add audio", bind=True)
+@celeryApp.task(name="add_audio", bind=True)
 def add_audio_task(
     self, 
     file_id: str,
@@ -153,19 +161,25 @@ def add_audio_task(
         results["asr"] = asr_results
         results["file_id"] = file_id
         
-        return {
-            "status": "success", 
-            "results": results, 
-            "time":time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+        data = {
+            "status": "success",
+            "type": self.request.task,
+            "results": results,
+            "time": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
         }
+        notify_task.delay(self.request.id, data)
+        return data
     
     except Exception as e:
         MockVoxLogger.error(
             f"Task failed: {file_name} \n\
                 Traceback:\n{traceback.format_exc()}"
         )
-        return {
+        data = {
             "status": "fail", 
+            "type": self.request.task,
             "results": {}, 
             "time":time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
         }
+        notify_task.delay(self.request.id, data)
+        return data

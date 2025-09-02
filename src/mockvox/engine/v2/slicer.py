@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List
 from scipy.io import wavfile
 
-from mockvox.config import get_config
+from mockvox.config import get_config,REF_AUDIO_PATH
 from mockvox.utils import load_audio, MockVoxLogger
 
 cfg = get_config()
@@ -229,18 +229,25 @@ def slice_audio(input_path: str, output_dir: str) -> List[str]:
             if chunk.size == 0:
                 MockVoxLogger.warning("Skip empty slice")
                 continue
+            # 生成切片文件名
+            file_name = f"{timestamp}_{start:010d}_{end:010d}.wav"
 
             sliced_file = os.path.join(
                 output_dir,
-                f"{timestamp}_{start:010d}_{end:010d}.wav"  
+                file_name
             )
+            os.makedirs(REF_AUDIO_PATH, exist_ok=True)
+            refAudio_file = os.path.join(
+                REF_AUDIO_PATH,
+                file_name
+            )
+
             sliced_files.append(sliced_file)
             
-            wavfile.write(
-                sliced_file,
-                32000,
-                (chunk * 32767).astype(np.int16)
-            )
+            processed_chunk = (chunk * 32767).astype(np.int16)
+
+            wavfile.write(sliced_file, 32000, processed_chunk)
+            wavfile.write(refAudio_file, 32000, processed_chunk)
 
         del slicer, audio
         return sliced_files

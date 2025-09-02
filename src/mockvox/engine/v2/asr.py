@@ -14,6 +14,8 @@ import nemo.collections.asr as Nemo_ASR
 
 from mockvox.config import PRETRAINED_PATH
 from mockvox.utils import MockVoxLogger
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
 class ChineseASR:
     def __init__(self,
@@ -21,15 +23,16 @@ class ChineseASR:
                  region: str = None,
                  asr_model_name: str = 'iic/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch',
                  vad_model_name: str = 'iic/speech_fsmn_vad_zh-cn-16k-common-pytorch',
-                 punc_model_name: str = 'iic/punc_ct-transformer_cn-en-common-vocab471067-large',
+                 #punc_model_name: str = 'iic/punc_ct-transformer_cn-en-common-vocab471067-large',
+                 punc_model_name: str = 'iic/punc_ct-transformer_zh-cn-common-vocab272727-pytorch',
                  device: Optional[str] = None
         ): 
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        # 语音识别
+        # 语音识别 vision='v2.0.4',  移除 / 设置 model_revision 为 None，才能彻底避免框架与模型 hub 的交互，实现 “纯本地加载”。
         self.model = AutoModel(
-            model=os.path.join(PRETRAINED_PATH,asr_model_name), model_revision='v2.0.4',
-            vad_model=os.path.join(PRETRAINED_PATH,vad_model_name), vad_model_revision='v2.0.4',
-            punc_model=os.path.join(PRETRAINED_PATH,punc_model_name), punc_model_revision='v2.0.4',
+            model=os.path.join(PRETRAINED_PATH,asr_model_name), model_revision=None,
+            vad_model=os.path.join(PRETRAINED_PATH,vad_model_name), vad_model_revision=None,
+            punc_model=os.path.join(PRETRAINED_PATH,punc_model_name), punc_model_revision=None,
             device=self.device,
             disable_update=True
         )

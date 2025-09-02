@@ -11,6 +11,7 @@ import argparse
 
 from .worker import celeryApp
 from mockvox.utils import MockVoxLogger, i18n, get_hparams_from_file
+from mockvox.worker.notify import notify_task
 
 from mockvox.engine import TrainingPipeline, ResumingPipeline, VersionDispatcher
 from mockvox.config import (
@@ -43,22 +44,28 @@ def train_task(
         pipeline = TrainingPipeline(args, components)
         modelID = pipeline.execute()
         results = OrderedDict()
-        results["model id"] = modelID
-        return {
+        results["model_id"] = modelID
+        data = {
             "status": "success",
+            "type": self.request.task,
             "results": results,
-            "time":time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+            "time": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
         }
+        notify_task.delay(self.request.id, data)
+        return data
 
     except Exception as e:
         MockVoxLogger.error(
             f"{i18n('训练过程错误')}: {args.fileID} | Traceback :\n{traceback.format_exc()}"
         )
-        return {
+        data = {
             "status": "fail",
+            "type": self.request.task,
             "results": {},
             "time":time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
         }
+        notify_task.delay(self.request.id, data)
+        return data
 
 @celeryApp.task(name="resume", bind=True)
 def resume_task(
@@ -91,13 +98,24 @@ def resume_task(
         pipeline.execute() 
 
         results = {}
-        return {
+        data = {
             "status": "success",
+            "type": self.request.task,
             "results": results,
-            "time":time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+            "time": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
         }
+        notify_task.delay(self.request.id, data)
+        return data
     
     except Exception as e:
         MockVoxLogger.error(
             f"{i18n('训练过程错误')}: {args.modelID} | Traceback :\n{traceback.format_exc()}"
         )
+        data = {
+            "status": "fail",
+            "type": self.request.task,
+            "results": {},
+            "time": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+        }
+        notify_task.delay(self.request.id, data)
+        return data

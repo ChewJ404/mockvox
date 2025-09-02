@@ -67,5 +67,8 @@ class Settings:
     SECRET_KEY: str = os.environ.get("SECRET_KEY")
     SECRET_KEY_EXPIRE_MINUTES: int = int(os.environ.get("SECRET_KEY_EXPIRE_MINUTES", "1440"))
 
+    # 任务异步通知地址
+    NOTIFIER_URL: str = os.environ.get("NOTIFIER_URL", "http://localhost:8080/callback")
+
 def get_config():
     return Settings()
