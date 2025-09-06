@@ -1,5 +1,7 @@
 import subprocess
 import os
+import shutil
+
 def clone_repository(target_dir, repo_url):
     if not os.path.exists(target_dir):
 
@@ -40,12 +42,12 @@ from mockvox.engine.v4.inference import Inferencer
 from mockvox.models.model_factory import ModelFactory
 from contextlib import asynccontextmanager
 import asyncio
-import aiofiles
 
 from mockvox.config import (
     get_config,
     SLICED_ROOT_PATH,
     DENOISED_ROOT_PATH,
+    PROCESS_PATH,
     ASR_PATH,
     GPT_HALF_WEIGHTS_FILE,
     SOVITS_HALF_WEIGHTS_FILE,
@@ -522,7 +524,7 @@ async def download_outputs(task_id:str):
     tags=[i18n("下载切分结果文件")]
 )
 async def download_sliced_outputs(base_file_id:str, file_id:str):
-    filename = f"{file_id}.WAV"
+    filename = f"{file_id}.wav"
     sliced_path = os.path.join(SLICED_ROOT_PATH, base_file_id)
 
     if not os.path.exists(os.path.join(sliced_path,filename)):
@@ -537,7 +539,7 @@ async def download_sliced_outputs(base_file_id:str, file_id:str):
     tags=[i18n("下载自定义上传的参考音频")]
 )
 async def download_ref_audio(file_id: str):
-    filename = f"{file_id}.WAV"
+    filename = f"{file_id}.wav"
     if not os.path.exists(os.path.join(REF_AUDIO_PATH,filename)):
         MockVoxLogger.error(i18n("音频文件不存在"))
         return
@@ -669,13 +671,10 @@ async def upload_audio(
         save_path = os.path.join(UPLOAD_PATH, filename)
 
         # 保存文件
-        # 使用aiofiles进行异步写入
-        async with aiofiles.open(save_path, 'wb') as f:
-            while chunk := await file.read(1024 * 1024):  # 1Mb chunks
-                await f.write(chunk)
-        # with open(save_path, 'wb') as f:
-        #     while chunk := await file.read(1024 * 1024):    # 1Mb chunks
-        #         f.write(chunk)
+
+        with open(save_path, 'wb') as f:
+            while chunk := await file.read(1024 * 1024):    # 1Mb chunks
+                f.write(chunk)
 
         # 记录保存成功日志
         MockVoxLogger.info(
@@ -729,32 +728,28 @@ async def upload_audio(
 def get_task_status(task_id: str):
     task = celeryApp.AsyncResult(task_id)
 
-    if task.ready() and task.state == "SUCCESS":
-        return {
-            "task_id": task_id,
-            "status": task.result.get("status") if task.ready() else "UNKNOWN",
-            "results": task.result.get("results") if task.ready() else None,
-            "time": task.result.get("time") if task.ready() else None
-        }
-    elif task.state in ["FAILURE", "RETRY"]:
-        # 任务失败，result 是异常对象
-        error_msg = str(task.result)  # 获取异常信息（如 "参考音频在3~10秒范围外，请更换！"）
-        status = "failed"  # 自定义失败状态
-        return {
-            "task_id": task_id,
-            "status": status,
-            "results": error_msg,
-            "time": None,  
-        }
-        
+    if task.ready():
+        if task.state == "SUCCESS":
+            return {
+                "task_id": task_id,
+                "status": "success",
+                "results": task.result.get("results"),
+                "time": task.result.get("time"),
+            }
+        else:  # 包含 FAILURE、RETRY、REVOKED 等
+            return {
+                "task_id": task_id,
+                "status": "failed",
+                "results": str(task.result),  # 异常信息
+                "time": None,
+            }
     else:
-        # 任务仍在处理中（PENDING/RUNNING）
-        status = "processing"
+        # PENDING、RECEIVED、STARTED 等
         return {
             "task_id": task_id,
-            "status": status,
-            "results": task.result.get("results") if task.ready() else None,
-            "time": task.result.get("time") if task.ready() else None
+            "status": "processing",
+            "results": None,
+            "time": None,
         }
 
 # 模型信息查询接口
@@ -783,6 +778,42 @@ def get_model_info(model_id: str):
         "SoVITS trained epoch": sovits_epoch,
         "GPT trained epoch": gpt_epoch
     }
+
+@app.post(
+    "/delete_model",
+    summary=i18n("删除模型"),
+    response_description=i18n("返回成功失败"),
+    tags=[i18n("删除模型")]
+)
+async def start_inference(
+    model_id:str = Form('20250905152600430344.0bfe05eb.23bdfb88a3a9412d882872dfc3182ec5', description=i18n("模型id")), 
+    first_file_id:str = Form('20250905152456437854.c9a7fad4.1964b076afa24919ae1205d4c27f8309', description=i18n("首次上传原始音频的文件ID")),
+):
+    #删除模型 以及所有 训练产生的文件
+    #asr/denoised/process/refAudio/sliced/upload/weights
+    filename = f"{first_file_id}.wav"
+    upload_files = os.path.join(UPLOAD_PATH, filename)
+    if os.path.isfile(upload_files):  # 确认是文件而非目录
+            os.remove(upload_files)
+
+    sliced_files_path = os.path.join(SLICED_ROOT_PATH, first_file_id)
+    denoised_files_path = os.path.join(DENOISED_ROOT_PATH, first_file_id)
+
+    # 参考音频单独处理
+    #asr_files_path = os.path.join(ASR_PATH, first_file_id)
+
+    process_files_path = os.path.join(PROCESS_PATH, model_id)
+    weights_path = os.path.join(WEIGHTS_PATH, model_id)
+
+    if os.path.exists(sliced_files_path):
+        shutil.rmtree(sliced_files_path)
+    if os.path.exists(denoised_files_path):
+        shutil.rmtree(denoised_files_path)
+    if os.path.exists(process_files_path):
+        shutil.rmtree(process_files_path)
+    if os.path.exists(weights_path):
+        shutil.rmtree(weights_path)
+    return {"success": True, "message": i18n("删除模型及相关文件成功")}
 
 if __name__ == "__main__":
     import uvicorn

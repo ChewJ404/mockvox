@@ -205,4 +205,4 @@ def generate_unique_filename(original_name: str, user_id: str = None) -> str:
     hash_base = md5(hash_seed.encode()).hexdigest()[:8]  # 取前8位
     
     # 组合最终文件名
-    return f"{timestamp}.{hash_base}.{uuid.uuid4().hex}.{file_ext}"
+    return f"{timestamp}.{hash_base}.{uuid.uuid4().hex}.{file_ext.lower()}"
