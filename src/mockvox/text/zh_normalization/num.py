@@ -251,6 +251,16 @@ def replace_to_range(match) -> str:
     result = match.group(0).replace('~', '至')
     return result
 
+RE_VERSION_NUM = re.compile(r"\d+(?:\.\d+)+")
+def replace_version_num(match) -> str:
+    """
+    Args:
+        match (re.Match)
+    Returns:
+        str
+    """
+    digit_mapping = str.maketrans("0123456789.", "零一二三四五六七八九点")
+    return match.group(0).translate(digit_mapping)
 
 def _get_value(value_string: str, use_zero: bool=True) -> List[str]:
     stripped = value_string.lstrip('0')
@@ -309,10 +319,13 @@ def num2str(value_string: str) -> str:
 
     result = verbalize_cardinal(integer)
 
-    decimal = decimal.rstrip('0')
+    if decimal.endswith("0"):
+        decimal = decimal.rstrip("0") + "0"
+    else:
+        decimal = decimal.rstrip("0")
     if decimal:
         # '.22' is verbalized as '零点二二'
-        # '3.20' is verbalized as '三点二
+        # '3.20' '3.200' are verbalized as '三点二零'
         result = result if result else "零"
         result += '点' + verbalize_digit(decimal)
     return result
