@@ -280,7 +280,7 @@ def normalize(text):
     text = re.sub(r"(?i)i\.e\.", "that is", text)
     text = re.sub(r"(?i)e\.g\.", "for example", text)
     # 增加纯大写单词拆分
-    text = re.sub(r"(?<!^)(?<![\s])([A-Z])", r" \1", text)
+    # text = re.sub(r"(?<!^)(?<![\s])([A-Z])", r" \1", text)
     # 处理特殊口语单词
     text = _convert_slang(text)
     return text
