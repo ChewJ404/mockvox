@@ -11,6 +11,38 @@ def sequence_mask(length, max_length=None):
     return x.unsqueeze(0) < length.unsqueeze(1)
 
 
+def make_pad_mask_left(lengths: torch.Tensor, max_len: int = 0) -> torch.Tensor:
+    """
+    Args:
+      lengths:
+        A 1-D tensor containing sentence lengths.
+      max_len:
+        The length of masks.
+    Returns:
+      Return a 2-D bool tensor, where masked positions
+      are filled with `True` and non-masked positions are
+      filled with `False`.
+
+    #>>> lengths = torch.tensor([1, 3, 2, 5])
+    #>>> make_pad_mask(lengths)
+    tensor(
+        [
+            [True,  True,  False],
+            [True, False, False],
+            [True,  True,  False],
+            ...
+        ]
+    )
+    """
+    assert lengths.ndim == 1, lengths.ndim
+    max_len = max(max_len, lengths.max())
+    n = lengths.size(0)
+    seq_range = torch.arange(0, max_len, device=lengths.device)
+    expaned_lengths = seq_range.unsqueeze(0).repeat(n, 1)
+    expaned_lengths -= (max_len - lengths).unsqueeze(-1)
+
+    return expaned_lengths < 0
+
 def make_pad_mask(lengths: torch.Tensor, max_len: int = 0) -> torch.Tensor:
     """
     Args:
@@ -181,24 +213,24 @@ def get_batch_logps(logits_target: torch.FloatTensor, logits_reject: torch.Float
 
     # dummy token; we'll ignore the losses on these tokens later
 
-    # per_token_logps_target = torch.gather(logits_target.log_softmax(-1), dim=2, index=labels_target.unsqueeze(2)).squeeze(2)
-    # per_token_logps_reject = torch.gather(logits_reject.log_softmax(-1), dim=2, index=labels_reject.unsqueeze(2)).squeeze(2)
-    # return per_token_logps_target.sum(-1), per_token_logps_reject.sum(-1)
+    per_token_logps_target = torch.gather(logits_target.log_softmax(-1), dim=2, index=labels_target.unsqueeze(2)).squeeze(2)
+    per_token_logps_reject = torch.gather(logits_reject.log_softmax(-1), dim=2, index=labels_reject.unsqueeze(2)).squeeze(2)
+    return per_token_logps_target.sum(-1), per_token_logps_reject.sum(-1)
     
     # 修正后的 gather 操作
-    per_token_logps_target = torch.gather(
-        logits_target.log_softmax(-1), 
-        dim=1,  # 维度修正为 1
-        index=labels_target.unsqueeze(1)  # 索引维度修正为 1
-    ).squeeze(1)  # 形状变为 [batch_size*seq_len]
+    # per_token_logps_target = torch.gather(
+    #     logits_target.log_softmax(-1), 
+    #     dim=1,  # 维度修正为 1
+    #     index=labels_target.unsqueeze(1)  # 索引维度修正为 1
+    # ).squeeze(1)  # 形状变为 [batch_size*seq_len]
     
-    per_token_logps_reject = torch.gather(
-        logits_reject.log_softmax(-1), 
-        dim=1,  # 同上
-        index=labels_reject.unsqueeze(1)
-    ).squeeze(1)
+    # per_token_logps_reject = torch.gather(
+    #     logits_reject.log_softmax(-1), 
+    #     dim=1,  # 同上
+    #     index=labels_reject.unsqueeze(1)
+    # ).squeeze(1)
     
-    return per_token_logps_target.sum(-1), per_token_logps_reject.sum(-1)
+    # return per_token_logps_target.sum(-1), per_token_logps_reject.sum(-1)
 
 def make_reject_y(y_o, y_lens):
     def repeat_P(y):

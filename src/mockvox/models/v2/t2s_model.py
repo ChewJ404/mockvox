@@ -12,6 +12,7 @@ from mockvox.nn.AR.utils import (
     sample,
     topk_sampling,
     make_pad_mask,
+    make_pad_mask_left,
     dpo_loss,
     make_reject_y,
     get_batch_logps
@@ -320,7 +321,7 @@ class Text2SemanticDecoder(nn.Module):
         x = self.ar_text_embedding(x)
         x = x + self.bert_proj(bert_feature.transpose(1, 2))
         x = self.ar_text_position(x)
-        x_mask = make_pad_mask(x_lens)
+        x_mask = make_pad_mask_left(x_lens)
 
         y_mask = make_pad_mask(y_lens)
         y_mask_int = y_mask.type(torch.int64)
@@ -384,11 +385,11 @@ class Text2SemanticDecoder(nn.Module):
             mask=xy_attn_mask,
         )
         x_len = x_lens.max()
-        logits = self.ar_predict_layer(xy_dec[:, x_len:])
+        logits = self.ar_predict_layer(xy_dec[:, x_len-1:])
 
         # 展平
-        logits_flat = logits.view(-1, logits.shape[-1])    # shape: (batch_size * seq_len, vocab_size)
-        targets_flat = targets.reshape(-1)                   # shape: (batch_size * seq_len)
+        # logits_flat = logits.view(-1, logits.shape[-1])    # shape: (batch_size * seq_len, vocab_size)
+        # targets_flat = targets.reshape(-1)                   # shape: (batch_size * seq_len)
         # assert logits_flat.shape[0] == targets_flat.shape[0], f"Seq length mismatch: {logits_flat.shape} vs {targets_flat.shape}"
 
         ###### DPO #############
@@ -399,23 +400,23 @@ class Text2SemanticDecoder(nn.Module):
             mask=reject_xy_attn_mask,
         )
         x_len = x_lens.max()
-        reject_logits = self.ar_predict_layer(reject_xy_dec[:, x_len:])
+        reject_logits = self.ar_predict_layer(reject_xy_dec[:, x_len-1:])
 
         # 展平
-        reject_logits_flat = reject_logits.view(-1, reject_logits.shape[-1])    # shape: (batch_size * seq_len, vocab_size)
-        reject_targets_flat = reject_targets.reshape(-1)                   # shape: (batch_size * seq_len)
+        # reject_logits_flat = reject_logits.view(-1, reject_logits.shape[-1])    # shape: (batch_size * seq_len, vocab_size)
+        # reject_targets_flat = reject_targets.reshape(-1)                   # shape: (batch_size * seq_len)
         # assert reject_logits_flat.shape[0] == reject_targets_flat.shape[0], f"Seq length mismatch: {reject_logits_flat.shape} vs {reject_targets_flat.shape}"
         # loss
         # from feiteng: 每次 duration 越多, 梯度更新也应该更多, 所以用 sum
 
-        # loss_1 = F.cross_entropy(logits.permute(0, 2, 1), targets, reduction="sum")
-        # acc = self.ar_accuracy_metric(logits.permute(0, 2, 1).detach(), targets).item()
+        loss_1 = F.cross_entropy(logits.permute(0, 2, 1), targets, reduction="sum")
+        acc = self.ar_accuracy_metric(logits.permute(0, 2, 1).detach(), targets).item()
 
         # 用展平后的 logits 和 targets 计算交叉熵损失和精度
-        loss_1 = F.cross_entropy(logits_flat, targets_flat, reduction="sum")
-        acc = self.ar_accuracy_metric(logits_flat.detach(), targets_flat).item()
+        # loss_1 = F.cross_entropy(logits_flat, targets_flat, reduction="sum")
+        # acc = self.ar_accuracy_metric(logits_flat.detach(), targets_flat).item()
 
-        A_logits, R_logits = get_batch_logps(logits_flat, reject_logits_flat, targets_flat, reject_targets_flat)
+        A_logits, R_logits = get_batch_logps(logits, reject_logits, targets, reject_targets)
         loss_2, _, _ = dpo_loss(A_logits, R_logits, 0, 0, 0.2, reference_free=True)
         
         loss = loss_1 + loss_2
@@ -430,7 +431,7 @@ class Text2SemanticDecoder(nn.Module):
         x = self.ar_text_embedding(x)
         x = x + self.bert_proj(bert_feature.transpose(1, 2))
         x = self.ar_text_position(x)
-        x_mask = make_pad_mask(x_lens)
+        x_mask = make_pad_mask_left(x_lens)
 
         y_mask = make_pad_mask(y_lens)
         y_mask_int = y_mask.type(torch.int64)
@@ -559,7 +560,7 @@ class Text2SemanticDecoder(nn.Module):
             y_mask_int, (0, 1), value=1
         )
         # 错位
-        return targets[:, :-1], targets[:, 1:]
+        return targets[:, :-1], targets
 
     def infer_panel_batch_infer(
         self,
@@ -623,8 +624,8 @@ class Text2SemanticDecoder(nn.Module):
         ##### create mask #####
         bsz = x.shape[0]
         src_len = x_len + y_len
-        y_paddind_mask = make_pad_mask(y_lens, y_len)
-        x_paddind_mask = make_pad_mask(x_lens, max_len)
+        y_paddind_mask = make_pad_mask_left(y_lens, y_len)
+        x_paddind_mask = make_pad_mask_left(x_lens, max_len)
         
         # (bsz, x_len + y_len)
         xy_padding_mask = torch.concat([x_paddind_mask, y_paddind_mask], dim=1)
@@ -831,6 +832,7 @@ class Text2SemanticDecoder(nn.Module):
                                                 .to(device=x.device, dtype=torch.bool)
 
         for idx in tqdm(range(1500)):
+            # print(xy_attn_mask)
             if xy_attn_mask is not None:
                 xy_dec, k_cache, v_cache = self.t2s_transformer.process_prompt(xy_pos, xy_attn_mask, None)
             else:

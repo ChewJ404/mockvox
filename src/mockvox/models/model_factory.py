@@ -61,7 +61,7 @@ class PyTorchModel:
             self.tensor = bert_model.half().to(self.device)
         if self.name[:15] == "zero_wav_torch_":
             zero_wav = np.zeros(
-                int(float(self.name[15:]) * 0.3),
+                int(float(self.name[15:]) * 0.5),
                 dtype=np.float16,
             )        
             zero_wav_torch = torch.from_numpy(zero_wav)
