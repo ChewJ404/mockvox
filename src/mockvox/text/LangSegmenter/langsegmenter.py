@@ -106,7 +106,7 @@ def is_valid_foreign_fragment(text, tag_lang):
 def correct_common_errors(lang_list):
     corrected = []
     for i, item in enumerate(lang_list):
-        # 规则1：短中文片段（如"元"）不应标记为日语
+        # 规则1：短中文片段不应标记为日语
         if (item['lang'] == 'ja' and 
             len(item['text']) <= 2 and 
             any('\u4e00' <= c <= '\u9fff' for c in item['text'])):

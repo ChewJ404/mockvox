@@ -58,7 +58,6 @@ def spectrogram_torch(y, n_fft, hop_size, win_size, center: Optional[bool] = Fal
     Args:
         y: 音频波形 (Tensor) shape: (B, T)
         n_fft: FFT点数
-        sampling_rate: 采样率（未实际使用，可考虑移除）
         hop_size: 帧移
         win_size: 窗长
         center: 是否中心填充
@@ -72,7 +71,7 @@ def spectrogram_torch(y, n_fft, hop_size, win_size, center: Optional[bool] = Fal
     # 获取设备相关缓存键
     global hann_window
     dtype_device = str(y.dtype) + "_" + str(y.device)
-    wnsize_dtype_device = str(win_size) + "_" + dtype_device
+    wnsize_dtype_device = "%s-%s-%s-%s" % (dtype_device, n_fft, hop_size, win_size)
     
     # 缓存汉宁窗
     if wnsize_dtype_device not in hann_window:
